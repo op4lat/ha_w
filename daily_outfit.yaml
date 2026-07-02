@@ -149,24 +149,36 @@
               unknown
             {% endif %}
           {% endif %}
+
+        weather_condition: >
+          {% set state_val = states('sensor.daily_outfit') %}
+          {% if state_val == 'extreme_heat' %} 🥵 Extreme Heat
+          {% elif state_val == 'very_warm' %} 🌡️ Very Warm
+          {% elif state_val == 'no_jacket' %} ☀️ Mild
+          {% elif state_val == 'light_jacket' %} 🧥 Cool
+          {% elif state_val == 'sweater' %} 🧥 Chilly
+          {% elif state_val == 'thick_coat' %} ❄️ Cold
+          {% elif state_val == 'heavy_coat' %} 🥶 Extreme Cold
+          {% else %} Normal
+          {% endif %}
           
         clothing_advice: >
           {% set state_val = states('sensor.daily_outfit') %}
           {% set is_work = is_state('binary_sensor.workday_sensor', 'on') %}
           {% if state_val == 'extreme_heat' %}
-            {{ '🥵 Extreme Heat: Wear shorts & light fabrics. Hydrate!' if is_work else '🥵 Extreme Heat: Shorts, tank tops, and water essential!' }}
+            {{ 'Wear shorts & light fabrics. Hydrate!' if is_work else 'Shorts, tank tops, and water essential!' }}
           {% elif state_val == 'very_warm' %}
-            {{ '🌡 Very Warm: Shorts recommended.' if is_work else '🌡 Very Warm: Shorts recommended.' }}
+            Shorts recommended.
           {% elif state_val == 'no_jacket' %}
-            {{ '☀ Mild: No jacket needed.' if is_work else '☀ Mild: T-shirt weather.' }}
+            {{ 'No jacket needed.' if is_work else 'T-shirt weather.' }}
           {% elif state_val == 'light_jacket' %}
-            {{ '🧥 Cool: Light jacket.' if is_work else '🧥 Cool: Light layer.' }}
+            {{ 'Light jacket.' if is_work else 'Light layer.' }}
           {% elif state_val == 'sweater' %}
-            {{ '🧥 Chilly: Sweater or fleece.' if is_work else '🧥 Chilly: Sweater weather.' }}
+            {{ 'Sweater or fleece.' if is_work else 'Sweater weather.' }}
           {% elif state_val == 'thick_coat' %}
-            {{ '❄ Cold: Thick winter coat.' if is_work else '❄ Cold: Thick coat needed.' }}
+            {{ 'Thick winter coat.' if is_work else 'Thick coat needed.' }}
           {% elif state_val == 'heavy_coat' %}
-            {{ '🥶 Extreme Cold: Heavy coat, hat, gloves.' if is_work else '🥶 Extreme Cold: Bundle up!' }}
+            {{ 'Heavy coat, hat, gloves.' if is_work else 'Bundle up!' }}
           {% else %}
-            Temperatures will be normal. Wear regular clothes.
+            Wear regular clothes.
           {% endif %}
