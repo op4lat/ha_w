@@ -1,0 +1,97 @@
+- trigger:
+    - trigger: time_pattern
+      hours: /1
+    - trigger: homeassistant
+      event: start
+  action:
+    - action: weather.get_forecasts
+      data:
+        type: hourly
+      target:
+        entity_id: >
+          {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
+          {% set current_hour = now().hour %}
+          {% if is_workday and current_hour >= 7 and current_hour < 17 %}
+            weather.om_work
+          {% else %}
+            weather.om_home
+          {% endif %}
+      response_variable: hourly_forecast
+  sensor:
+    - name: "Rain Expected Soon"
+      unique_id: rain_expected_soon
+      state: >
+        {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
+        {% set current_hour = now().hour %}
+        {% set forecast_entity = 'weather.om_work' if (is_workday and current_hour >= 7 and current_hour < 17) else 'weather.om_home' %}
+        
+        {% set forecast = hourly_forecast[forecast_entity].forecast %}
+        {% set next_3_hours = forecast[:3] %}
+        
+        {# Hybrid Logic: Try Probability first, fallback to Amount #}
+        {% set probs = next_3_hours | map(attribute='precipitation_probability') | select('defined') | list %}
+        {% if probs | length > 0 %}
+          {% set rain_likelihood = probs | select('gt', 30) | list | length %}
+        {% else %}
+          {% set precs = next_3_hours | map(attribute='precipitation') | select('defined') | list %}
+          {% set rain_likelihood = precs | select('gt', 0) | list | length %}
+        {% endif %}
+        
+        {{ 'on' if rain_likelihood > 0 else 'off' }}
+      attributes:
+        location_context: >
+          {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
+          {% set current_hour = now().hour %}
+          {{ 'Work' if (is_workday and current_hour >= 7 and current_hour < 17) else 'Home' }}
+        max_probability: >
+          {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
+          {% set current_hour = now().hour %}
+          {% set forecast_entity = 'weather.om_work' if (is_workday and current_hour >= 7 and current_hour < 17) else 'weather.om_home' %}
+          {% set forecast = hourly_forecast[forecast_entity].forecast %}
+          {% set next_3_hours = forecast[:3] %}
+          
+          {# Calculate Max Probability or Simulate if Missing #}
+          {% set probs = next_3_hours | map(attribute='precipitation_probability') | select('defined') | list %}
+          {% if probs | length > 0 %}
+            {{ probs | max }}
+          {% else %}
+            {% set precs = next_3_hours | map(attribute='precipitation') | select('defined') | list %}
+            {{ 100 if precs | select('gt', 0) | list | length > 0 else 0 }}
+          {% endif %}
+        precip_type: >
+          {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
+          {% set current_hour = now().hour %}
+          {% set forecast_entity = 'weather.om_work' if (is_workday and current_hour >= 7 and current_hour < 17) else 'weather.om_home' %}
+          {% set forecast = hourly_forecast[forecast_entity].forecast %}
+          {% set next_3_hours = forecast[:3] %}
+          {% set rainy_hours = next_3_hours | selectattr('precipitation_probability', 'defined') | selectattr('precipitation_probability', 'gt', 30) | map(attribute='condition') | list %}
+          {# Fallback check for conditions if probability is missing #}
+          {% if rainy_hours | length == 0 %}
+             {% set rainy_hours = next_3_hours | selectattr('precipitation', 'defined') | selectattr('precipitation', 'gt', 0) | map(attribute='condition') | list %}
+          {% endif %}
+          {% if 'snowy' in rainy_hours or 'snowy-rainy' in rainy_hours %}
+            snow
+          {% else %}
+            rain
+          {% endif %}
+        raw_conditions: >
+          {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
+          {% set current_hour = now().hour %}
+          {% set forecast_entity = 'weather.om_work' if (is_workday and current_hour >= 7 and current_hour < 17) else 'weather.om_home' %}
+          {% set forecast = hourly_forecast[forecast_entity].forecast %}
+          {% set next_3_hours = forecast[:3] %}
+          {{ next_3_hours | map(attribute='condition') | list }}
+        start_time: >
+          {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
+          {% set current_hour = now().hour %}
+          {% set forecast_entity = 'weather.om_work' if (is_workday and current_hour >= 7 and current_hour < 17) else 'weather.om_home' %}
+          {% set forecast = hourly_forecast[forecast_entity].forecast %}
+          
+          {# Find first hour with precipitation #}
+          {% set rainy_hours = forecast | selectattr('precipitation', 'defined') | selectattr('precipitation', 'gt', 0) | list %}
+          
+          {% if rainy_hours and rainy_hours[0].datetime is defined %}
+            {{ (as_datetime(rainy_hours[0].datetime) | as_local).strftime('%I:%M %p') }}
+          {% else %}
+            soon
+          {% endif %}   

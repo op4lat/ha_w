@@ -1,0 +1,172 @@
+- trigger:
+    - trigger: time
+      at: "04:20:00"
+    - trigger: time
+      at: "09:00:00"
+    - trigger: homeassistant
+      event: start
+    - trigger: event
+      event_type: input_button.press
+      event_data:
+        entity_id: input_button.dailyoutfit
+  action:
+    - action: weather.get_forecasts
+      data:
+        type: hourly
+      target:
+        entity_id: >
+          {% if is_state('binary_sensor.workday_sensor', 'on') %}
+            weather.om_work
+          {% else %}
+            weather.om_home
+          {% endif %}
+      response_variable: hourly_forecast
+  sensor:
+    - name: "Daily Outfit"
+      unique_id: daily_outfit
+      state: >
+        {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
+        {% set current_hour = now().hour %}
+        
+        {# Block early weekend triggers #}
+        {% if not is_workday and current_hour < 9 %}
+          off
+        {% else %}
+          {% set forecast_entity = 'weather.om_work' if is_workday else 'weather.om_home' %}
+          
+          {% if hourly_forecast is defined and forecast_entity in hourly_forecast and hourly_forecast[forecast_entity].forecast %}
+            {% set forecast = hourly_forecast[forecast_entity].forecast %}
+            {% set check_window = forecast[:14] %}  
+            {% set max_fl = namespace(val=-999) %}
+            {% set min_fl = namespace(val=999) %}
+            
+            {# Loop through the window calculating feels-like inline #}
+            {% for hour in check_window %}
+              {% set t = hour.temperature | float | default(0) %}
+              {% set h = hour.get('humidity', 50) | float | default(50) %}
+              {% set w = hour.get('wind_speed', 0) | float | default(0) %}
+              {% set feels = t %}
+              
+              {% if t > 80 %}
+                {% set feels = 0.5 * (t + 61.0 + ((t - 68.0) * 1.2) + (h * 0.094)) %}
+              {% elif t < 50 and w > 3 %}
+                {% set feels = 35.74 + (0.6215 * t) - (35.75 * (w ** 0.16)) + (0.4275 * t * (w ** 0.16)) %}
+              {% endif %}
+              
+              {% if feels > max_fl.val %}{% set max_fl.val = feels %}{% endif %}
+              {% if feels < min_fl.val %}{% set min_fl.val = feels %}{% endif %}
+            {% endfor %}
+            
+            {# Threshold checks #}
+            {% if max_fl.val > 100 %} extreme_heat
+            {% elif max_fl.val > 90 %} very_warm
+            {% elif min_fl.val < 10 %} heavy_coat
+            {% elif min_fl.val < 32 %} thick_coat
+            {% elif min_fl.val < 45 %} sweater
+            {% elif min_fl.val < 60 %} light_jacket
+            {% else %} no_jacket
+            {% endif %}
+          {% else %}
+            unavailable
+          {% endif %}
+        {% endif %}
+        
+      attributes:
+        context: "{{ 'work' if is_state('binary_sensor.workday_sensor', 'on') else 'home' }}"
+        
+        morning_feels_like: >
+          {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
+          {% if not is_workday and now().hour < 9 %}
+            0
+          {% else %}
+            {% set forecast_entity = 'weather.om_work' if is_workday else 'weather.om_home' %}
+            {% if hourly_forecast is defined and forecast_entity in hourly_forecast and hourly_forecast[forecast_entity].forecast %}
+              {% set forecast = hourly_forecast[forecast_entity].forecast %}
+              {% set idx = [0, forecast|length - 1]|min %}
+              {% set h = forecast[idx] %}
+              {% set t = h.temperature | float | default(0) %}
+              {% set hum = h.get('humidity', 50) | float | default(50) %}
+              {% set w = h.get('wind_speed', 0) | float | default(0) %}
+              {% set feels = t %}
+              
+              {% if t > 80 %}
+                {% set feels = 0.5 * (t + 61.0 + ((t - 68.0) * 1.2) + (hum * 0.094)) %}
+              {% elif t < 50 and w > 3 %}
+                {% set feels = 35.74 + (0.6215 * t) - (35.75 * (w ** 0.16)) + (0.4275 * t * (w ** 0.16)) %}
+              {% endif %}
+              {{ feels | round(1) }}
+            {% else %}
+              unknown
+            {% endif %}
+          {% endif %}
+
+        later_feels_like_1: >
+          {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
+          {% if not is_workday and now().hour < 9 %}
+            0
+          {% else %}
+            {% set forecast_entity = 'weather.om_work' if is_workday else 'weather.om_home' %}
+            {% if hourly_forecast is defined and forecast_entity in hourly_forecast and hourly_forecast[forecast_entity].forecast %}
+              {% set forecast = hourly_forecast[forecast_entity].forecast %}
+              {% set idx = [7 if is_workday else 3, forecast|length - 1]|min %}
+              {% set h = forecast[idx] %}
+              {% set t = h.temperature | float | default(0) %}
+              {% set hum = h.get('humidity', 50) | float | default(50) %}
+              {% set w = h.get('wind_speed', 0) | float | default(0) %}
+              {% set feels = t %}
+              {% if t > 80 %}
+                {% set feels = 0.5 * (t + 61.0 + ((t - 68.0) * 1.2) + (hum * 0.094)) %}
+              {% elif t < 50 and w > 3 %}
+                {% set feels = 35.74 + (0.6215 * t) - (35.75 * (w ** 0.16)) + (0.4275 * t * (w ** 0.16)) %}
+              {% endif %}
+              {{ feels | round(1) }}
+            {% else %}
+              unknown
+            {% endif %}
+          {% endif %}
+          
+        later_feels_like_2: >
+          {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
+          {% if not is_workday and now().hour < 9 %}
+            0
+          {% else %}
+            {% set forecast_entity = 'weather.om_work' if is_workday else 'weather.om_home' %}
+            {% if hourly_forecast is defined and forecast_entity in hourly_forecast and hourly_forecast[forecast_entity].forecast %}
+              {% set forecast = hourly_forecast[forecast_entity].forecast %}
+              {% set idx = [12 if is_workday else 6, forecast|length - 1]|min %}
+              {% set h = forecast[idx] %}
+              {% set t = h.temperature | float | default(0) %}
+              {% set hum = h.get('humidity', 50) | float | default(50) %}
+              {% set w = h.get('wind_speed', 0) | float | default(0) %}
+              {% set feels = t %}
+              {% if t > 80 %}
+                {% set feels = 0.5 * (t + 61.0 + ((t - 68.0) * 1.2) + (hum * 0.094)) %}
+              {% elif t < 50 and w > 3 %}
+                {% set feels = 35.74 + (0.6215 * t) - (35.75 * (w ** 0.16)) + (0.4275 * t * (w ** 0.16)) %}
+              {% endif %}
+              {{ feels | round(1) }}
+            {% else %}
+              unknown
+            {% endif %}
+          {% endif %}
+          
+        clothing_advice: >
+          {% set state_val = states('sensor.daily_outfit') %}
+          {% set is_work = is_state('binary_sensor.workday_sensor', 'on') %}
+          {% if state_val == 'extreme_heat' %}
+            {{ '🥵 Extreme Heat: Wear shorts & light fabrics. Hydrate!' if is_work else '🥵 Extreme Heat: Shorts, tank tops, and water essential!' }}
+          {% elif state_val == 'very_warm' %}
+            {{ '🌡 Very Warm: Shorts recommended.' if is_work else '🌡 Very Warm: Shorts recommended.' }}
+          {% elif state_val == 'no_jacket' %}
+            {{ '☀ Mild: No jacket needed.' if is_work else '☀ Mild: T-shirt weather.' }}
+          {% elif state_val == 'light_jacket' %}
+            {{ '🧥 Cool: Light jacket.' if is_work else '🧥 Cool: Light layer.' }}
+          {% elif state_val == 'sweater' %}
+            {{ '🧥 Chilly: Sweater or fleece.' if is_work else '🧥 Chilly: Sweater weather.' }}
+          {% elif state_val == 'thick_coat' %}
+            {{ '❄ Cold: Thick winter coat.' if is_work else '❄ Cold: Thick coat needed.' }}
+          {% elif state_val == 'heavy_coat' %}
+            {{ '🥶 Extreme Cold: Heavy coat, hat, gloves.' if is_work else '🥶 Extreme Cold: Bundle up!' }}
+          {% else %}
+            Temperatures will be normal. Wear regular clothes.
+          {% endif %}

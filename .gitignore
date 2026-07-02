@@ -1,0 +1,20 @@
+# Ignore old and backup files deep in any subdirectory
+**/*.old
+**/*.bak
+**/*.yaml[0-9]*
+**/*.working
+**/*.nv
+
+# CRITICAL SECURITY: Ignore your private SSH keys and secrets
+.ssh/
+secrets.yaml
+
+# Ignore large/volatile Home Assistant system files
+home-assistant_v2.db
+home-assistant_v2.db-shm
+home-assistant_v2.db-wal
+home-assistant.log
+home-assistant.log.1
+home-assistant.log.fault
+.storage/
+__pycache__/

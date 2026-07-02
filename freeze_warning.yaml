@@ -1,0 +1,53 @@
+# templates/freeze_warning.yaml
+- trigger:
+    - trigger: time_pattern
+      hours: /1
+    - trigger: homeassistant
+      event: start
+  action:
+    - action: weather.get_forecasts
+      data:
+        type: hourly
+      target:
+        entity_id: weather.om_home
+      response_variable: hourly_forecast
+  sensor:
+    - name: "Freeze Warning"
+      unique_id: freeze_warning_sensor
+      state: >
+        {% set forecast = hourly_forecast['weather.om_home'].forecast %}
+        {% if not forecast %} off {% endif %} {# Safety check #}
+        {% set next_24h = forecast[:24] %}
+        {% set min_temp = namespace(val=999) %}
+        {% for hour in next_24h %}
+          {% set t = hour.temperature | float | default(50) %}
+          {% if t < min_temp.val %}{% set min_temp.val = t %}{% endif %}
+        {% endfor %}
+        {{ 'on' if min_temp.val < 35 else 'off' }}
+      attributes:
+        min_temperature: >
+          {% set forecast = hourly_forecast['weather.om_home'].forecast %}
+          {% if not forecast %} 0 {% endif %} {# Safety check #}
+          {% set next_24h = forecast[:24] %}
+          {% set min_temp = 999 %}
+          {% for hour in next_24h %}
+            {% set t = hour.temperature | float | default(50) %}
+            {% if t < min_temp %}{% set min_temp = t %}{% endif %}
+          {% endfor %}
+          {{ min_temp if min_temp != 999 else 0 }}
+        warning_message: >
+          {% set min_temp_raw = state_attr('sensor.freeze_warning_sensor', 'min_temperature') %}
+          {# Check if raw value is None, 'unknown', or 'unavailable' #}
+          {% if min_temp_raw is none or min_temp_raw in ['unknown', 'unavailable'] %}
+            {% set min_temp = 50.0 %}
+          {% else %}
+            {% set min_temp = min_temp_raw | float %}
+          {% endif %}
+
+          {% if min_temp < 32 %}
+            🥶 CRITICAL: Temperatures below freezing ({{ min_temp }}°F). Cover plants and protect pipes.
+          {% elif min_temp < 35 %}
+            ❄ FROST ALERT: Low of {{ min_temp }}°F expected. Sensitive plants may be damaged.
+          {% else %}
+            No freeze expected.
+          {% endif %}
