@@ -1,5 +1,5 @@
 # Ignore old and backup files deep in any subdirectory
-**/*.old
+**/*.old[0-9]*
 **/*.bak
 **/*.yaml[0-9]*
 **/*.working
