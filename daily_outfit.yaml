@@ -8,17 +8,22 @@
     - trigger: state
       entity_id: input_button.dailyoutfit
   action:
-    - action: weather.get_forecasts
-      data:
-        type: hourly
-      target:
-        entity_id: >
-          {% if is_state('binary_sensor.workday_sensor', 'on') %}
-            weather.om_work
-          {% else %}
-            weather.om_home
-          {% endif %}
-      response_variable: hourly_forecast
+    - if:
+        - condition: template
+          value_template: >
+            {{ states('weather.om_home') != 'unknown' or states('weather.om_work') != 'unknown' }}
+      then:
+        - action: weather.get_forecasts
+          data:
+            type: hourly
+          target:
+            entity_id: >
+              {% if is_state('binary_sensor.workday_sensor', 'on') %}
+                weather.om_work
+              {% else %}
+                weather.om_home
+              {% endif %}
+          response_variable: hourly_forecast
   sensor:
     - name: "Daily Outfit"
       unique_id: daily_outfit
