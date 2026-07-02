@@ -5,10 +5,8 @@
       at: "09:00:00"
     - trigger: homeassistant
       event: start
-    - trigger: event
-      event_type: input_button.press
-      event_data:
-        entity_id: input_button.dailyoutfit
+    - trigger: state
+      entity_id: input_button.dailyoutfit
   action:
     - action: weather.get_forecasts
       data:
