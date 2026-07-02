@@ -1,0 +1,45 @@
+template:
+  - sensor:
+      # 1. Beaufort Number Sensor
+      - name: "ST Beaufort"
+        unique_id: st_beaufort_number
+        state: >    
+          {% set wind = states('sensor.st_00187689_wind_speed') | float(0) %}
+          {% if wind < 1.0 %} 0
+          {% elif wind < 4.0 %} 1
+          {% elif wind < 8.0 %} 2
+          {% elif wind < 13.0 %} 3
+          {% elif wind < 19.0 %} 4
+          {% elif wind < 25.0 %} 5
+          {% elif wind < 32.0 %} 6
+          {% elif wind < 39.0 %} 7
+          {% elif wind < 47.0 %} 8
+          {% elif wind < 55.0 %} 9
+          {% elif wind < 64.0 %} 10
+          {% elif wind < 73.0 %} 11
+          {% else %} 12
+          {% endif %}
+        icon: mdi:weather-windy
+
+      # 2. Beaufort Description Sensor
+      - name: "ST Beaufort Desc"
+        unique_id: st_beaufort_description
+        state: >
+          {% set bft = states('sensor.st_beaufort') | int(0) %}
+          {% set desc = {
+            0: 'Calm',
+            1: 'Light air',
+            2: 'Light breeze',
+            3: 'Gentle breeze',
+            4: 'Moderate breeze',
+            5: 'Fresh breeze',
+            6: 'Strong breeze',
+            7: 'High wind',
+            8: 'Gale',
+            9: 'Strong gale',
+            10: 'Storm',
+            11: 'Violent storm',
+            12: 'Hurricane force'
+          } %}
+          {{ desc.get(bft, 'Unknown') }}
+        icon: mdi:wind-power
