@@ -152,14 +152,6 @@ sub_button:
     ├── beaufort.yaml        # (Optional/Legacy) Old multi-sensor version
     └── beaufort.disable     # (Reference) Original chart data
 ```
-
-### Troubleshooting
-
-*   **Entity shows "Unknown"**: Ensure `sensor.st_beaufort_scale` exists and returns a number (0–12).
-*   **Visual Editor Warning**: When editing dashboard YAML, you may see *"Visual editor not supported"*. This is normal for attribute-based configurations; simply continue editing in YAML mode.
-*   **Old Sensors Persist**: If old `sensor.beaufort_land` or `sensor.beaufort_sea` entities still appear, they are orphaned. You may need to delete them via **Settings > Devices & Services > Entities** or use the `recorder.purge_entities` service.
-*   **Typo in State**: If you see "clam" instead of "Calm", check your template for typos in the `state` dictionary.
-
 ### License
 GNU General Public License v3.0
 

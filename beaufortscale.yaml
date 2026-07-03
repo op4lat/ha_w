@@ -2,7 +2,9 @@
     - name: "beaufort_scale"
       unique_id: beaufort_scale
       state: >
-        {% set bft = states('sensor.st_beaufort_scale') | int(0) %}
+        {% set wind_speed = states('sensor.st_00187689_wind_speed') | float(0) %}
+        {% set bft = (wind_speed / 1.496) ** (2/3) | round | int %}
+        {% set bft = [0, [bft, 12] | min] | max %}
         {% set desc = {
           0: 'Calm', 1: 'Light air', 2: 'Light breeze', 3: 'Gentle breeze', 
           4: 'Moderate breeze', 5: 'Fresh breeze', 6: 'Strong breeze', 
@@ -12,9 +14,13 @@
         {{ desc.get(bft, 'Unknown') }}
       attributes:
         number: >
-          {{ states('sensor.st_beaufort_scale') | int(0) }}
+          {% set wind_speed = states('sensor.st_00187689_wind_speed') | float(0) %}
+          {% set bft = (wind_speed / 1.496) ** (2/3) | round | int %}
+          {{ [0, [bft, 12] | min] | max }}
         land: >
-          {% set bft = states('sensor.st_beaufort_scale') | int(0) %}
+          {% set wind_speed = states('sensor.st_00187689_wind_speed') | float(0) %}
+          {% set bft = (wind_speed / 1.496) ** (2/3) | round | int %}
+          {% set bft = [0, [bft, 12] | min] | max %}
           {% set land_map = {
             0: 'Smoke rises vertically.',
             1: 'Direction shown by smoke drift.',
@@ -32,9 +38,11 @@
           } %}
           {{ land_map.get(bft, 'Unknown') }}
         sea: >
-          {% set bft = states('sensor.st_beaufort_scale') | int(0) %}
+          {% set wind_speed = states('sensor.st_00187689_wind_speed') | float(0) %}
+          {% set bft = (wind_speed / 1.496) ** (2/3) | round | int %}
+          {% set bft = [0, [bft, 12] | min] | max %}
           {% set sea_map = {
-            0: 'Sea like a mirror.',
+            0: 'Like a mirror.',
             1: 'Ripples with appearance of scales.',
             2: 'Small wavelets; crests have glassy appearance.',
             3: 'Large wavelets; crests begin to break.',
