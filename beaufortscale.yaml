@@ -1,0 +1,51 @@
+- sensor:
+    - name: "beaufort_scale"
+      unique_id: beaufort_scale
+      state: >
+        {% set bft = states('sensor.st_beaufort_scale') | int(0) %}
+        {% set desc = {
+          0: 'Calm', 1: 'Light air', 2: 'Light breeze', 3: 'Gentle breeze', 
+          4: 'Moderate breeze', 5: 'Fresh breeze', 6: 'Strong breeze', 
+          7: 'High wind', 8: 'Gale', 9: 'Strong gale', 10: 'Storm', 
+          11: 'Violent storm', 12: 'Hurricane force'
+        } %}
+        {{ desc.get(bft, 'Unknown') }}
+      attributes:
+        number: >
+          {{ states('sensor.st_beaufort_scale') | int(0) }}
+        land: >
+          {% set bft = states('sensor.st_beaufort_scale') | int(0) %}
+          {% set land_map = {
+            0: 'Smoke rises vertically.',
+            1: 'Direction shown by smoke drift.',
+            2: 'Wind felt on face; leaves rustle.',
+            3: 'Leaves and small twigs in constant motion.',
+            4: 'Raises dust and loose paper; small branches moved.',
+            5: 'Small trees in leaf begin to sway.',
+            6: 'Large branches in motion; whistling in telegraph wires.',
+            7: 'Whole trees in motion; inconvenience felt walking.',
+            8: 'Twigs break off trees; generally impedes progress.',
+            9: 'Slight structural damage (chimney pots and slates removed).',
+            10: 'Seldom experienced inland; trees uprooted.',
+            11: 'Very rarely experienced; accompanied by widespread damage.',
+            12: 'Hurricane force. Devastation.'
+          } %}
+          {{ land_map.get(bft, 'Unknown') }}
+        sea: >
+          {% set bft = states('sensor.st_beaufort_scale') | int(0) %}
+          {% set sea_map = {
+            0: 'Sea like a mirror.',
+            1: 'Ripples with appearance of scales.',
+            2: 'Small wavelets; crests have glassy appearance.',
+            3: 'Large wavelets; crests begin to break.',
+            4: 'Small waves becoming longer; fairly frequent white horses.',
+            5: 'Moderate waves; many white horses; chance of spray.',
+            6: 'Large waves begin to form; white foam crests everywhere.',
+            7: 'Sea heaps up; white foam blown in streaks.',
+            8: 'Moderately high waves; edges of crests break into spindrift.',
+            9: 'High waves; dense streaks of foam; sea begins to roll.',
+            10: 'Very high waves; overhanging crests; visibility affected.',
+            11: 'Exceptionally high waves; sea covered with white patches.',
+            12: 'Air filled with foam and spray; visibility seriously affected.'
+          } %}
+          {{ sea_map.get(bft, 'Unknown') }}
