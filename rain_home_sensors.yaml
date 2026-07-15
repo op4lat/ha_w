@@ -1,0 +1,43 @@
+# File: /config/templates/rain_sensors.yaml
+
+# --- Sensor 1: Rain Probability from Open-Meteo ---
+# Updates every hour to fetch the latest forecast data
+- trigger:
+    - platform: time_pattern
+      hours: "/1"
+    - platform: homeassistant
+      event: start
+  action:
+    - service: weather.get_forecasts
+      data:
+        type: hourly
+      target:
+        entity_id: weather.om_home
+      response_variable: hourly_forecast
+  sensor:
+    - name: "Rain Probability Next Hour"
+      unique_id: "om_home_rain_prob_next_hour"
+      unit_of_measurement: "%"
+      state: >
+        {% set forecast_data = hourly_forecast.get('weather.om_home', {}).get('forecast', []) %}
+        {% if forecast_data and forecast_data | length > 0 %}
+          {{ forecast_data[0].get('precipitation_probability', 0) | int }}
+        {% else %}
+          0
+        {% endif %}
+
+# --- Sensor 2: Filtered Tempest Rain Intensity (Optional but Recommended) ---
+# This sensor outputs 0 if the raw value is below 0.01 in/h (noise filter)
+# Use this sensor in your automations instead of the raw Tempest sensor
+- sensor:
+    - name: "Tempest Rain Intensity Filtered"
+      unique_id: "tempest_rain_intensity_filtered"
+      unit_of_measurement: "in/h"
+      device_class: "precipitation_intensity"
+      state: >
+        {% set raw = states('sensor.st_00187689_precipitation_intensity') | float(default=0) %}
+        {% if raw > 0.01 %}
+          {{ raw }}
+        {% else %}
+          0
+        {% endif %}   
