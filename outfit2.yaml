@@ -30,7 +30,7 @@
       state: >
         {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
         {% set current_hour = now().hour %}
-        
+
         {# Block early weekend triggers #}
         {% if not is_workday and current_hour < 9 %}
           off
@@ -72,10 +72,10 @@
             unavailable
           {% endif %}
         {% endif %}
-        
+
       attributes:
         context: "{{ 'work' if is_state('binary_sensor.workday_sensor', 'on') else 'home' }}"
-        
+
         # Helper to let the notification know if it's looking at today or tomorrow
         forecast_day: >
           {% set current_hour = now().hour %}
@@ -117,14 +117,21 @@
               {% set forecast = hourly_forecast[forecast_entity].forecast %}
               {% set target_hour = 11 if is_workday else 12 %}
               
-              {# If the target hour today has already passed, target tomorrow's hour #}
-              {% set target_date = (now() if now().hour < target_hour else now() + timedelta(days=1)).strftime('%Y-%m-%d') %}
-              {% set target_string = target_date ~ 'T' ~ '%02d'|format(target_hour) ~ ':00:' %}
+              {# Determine if we are looking for today or tomorrow #}
+              {% set target_day = now().date() if now().hour < target_hour else (now() + timedelta(days=1)).date() %}
               
-              {% set match = forecast | selectattr('datetime', 'defined') | selectattr('datetime', 'search', target_string) | first | default(none) %}
-              {% if match is none %}
-                {% set match = forecast[[7 if is_workday else 3, forecast|length - 1]|min] %}
-              {% endif %}
+              {# Robustly find the matching forecast slot #}
+              {% set ns = namespace(match=none) %}
+              {% for hour in forecast if hour.datetime is defined %}
+                {% set dt = as_datetime(hour.datetime) %}
+                {% if dt.date() == target_day and dt.hour == target_hour %}
+                  {% set ns.match = hour %}
+                {% endif %}
+              {% endfor %}
+              
+              {# Fallback to standard index if not found #}
+              {% set match = ns.match if ns.match is not none else forecast[[7 if is_workday else 3, forecast|length - 1]|min] %}
+              
               {% set t = match.temperature | float | default(0) %}
               {% set hum = match.get('humidity', 50) | float | default(50) %}
               {% set w = match.get('wind_speed', 0) | float | default(0) %}
@@ -139,7 +146,7 @@
               unknown
             {% endif %}
           {% endif %}
-          
+
         later_feels_like_2: >
           {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
           {% if not is_workday and now().hour < 9 %}
@@ -150,14 +157,21 @@
               {% set forecast = hourly_forecast[forecast_entity].forecast %}
               {% set target_hour = 16 if is_workday else 15 %}
               
-              {# If the target hour today has already passed, target tomorrow's hour #}
-              {% set target_date = (now() if now().hour < target_hour else now() + timedelta(days=1)).strftime('%Y-%m-%d') %}
-              {% set target_string = target_date ~ 'T' ~ '%02d'|format(target_hour) ~ ':00:' %}
+              {# Determine if we are looking for today or tomorrow #}
+              {% set target_day = now().date() if now().hour < target_hour else (now() + timedelta(days=1)).date() %}
               
-              {% set match = forecast | selectattr('datetime', 'defined') | selectattr('datetime', 'search', target_string) | first | default(none) %}
-              {% if match is none %}
-                {% set match = forecast[[12 if is_workday else 6, forecast|length - 1]|min] %}
-              {% endif %}
+              {# Robustly find the matching forecast slot #}
+              {% set ns = namespace(match=none) %}
+              {% for hour in forecast if hour.datetime is defined %}
+                {% set dt = as_datetime(hour.datetime) %}
+                {% if dt.date() == target_day and dt.hour == target_hour %}
+                  {% set ns.match = hour %}
+                {% endif %}
+              {% endfor %}
+              
+              {# Fallback to standard index if not found #}
+              {% set match = ns.match if ns.match is not none else forecast[[12 if is_workday else 6, forecast|length - 1]|min] %}
+              
               {% set t = match.temperature | float | default(0) %}
               {% set hum = match.get('humidity', 50) | float | default(50) %}
               {% set w = match.get('wind_speed', 0) | float | default(0) %}
@@ -184,7 +198,7 @@
           {% elif state_val == 'heavy_coat' %} 🥶 Extreme Cold
           {% else %} Normal
           {% endif %}
-          
+
         clothing_advice: >
           {% set state_val = states('sensor.daily_outfit') %}
           {% set is_work = is_state('binary_sensor.workday_sensor', 'on') %}
