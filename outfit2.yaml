@@ -123,7 +123,8 @@
               {# Robustly find the matching forecast slot #}
               {% set ns = namespace(match=none) %}
               {% for hour in forecast if hour.datetime is defined %}
-                {% set dt = as_datetime(hour.datetime) %}
+                {# Convert UTC forecast time to Local Time #}
+                {% set dt = as_datetime(hour.datetime) | as_local %}
                 {% if dt.date() == target_day and dt.hour == target_hour %}
                   {% set ns.match = hour %}
                 {% endif %}
@@ -163,7 +164,8 @@
               {# Robustly find the matching forecast slot #}
               {% set ns = namespace(match=none) %}
               {% for hour in forecast if hour.datetime is defined %}
-                {% set dt = as_datetime(hour.datetime) %}
+                {# Convert UTC forecast time to Local Time #}
+                {% set dt = as_datetime(hour.datetime) | as_local %}
                 {% if dt.date() == target_day and dt.hour == target_hour %}
                   {% set ns.match = hour %}
                 {% endif %}
@@ -218,4 +220,74 @@
             {{ 'Heavy coat, hat, gloves.' if is_work else 'Bundle up!' }}
           {% else %}
             Wear regular clothes.
+          {% endif %}
+
+        precipitation_lunch: >
+          {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
+          {% if not is_workday %}
+            none
+          {% else %}
+            {% set forecast_entity = 'weather.om_work' %}
+            {% if hourly_forecast is defined and forecast_entity in hourly_forecast and hourly_forecast[forecast_entity].forecast %}
+              {% set forecast = hourly_forecast[forecast_entity].forecast %}
+              {% set target_hour = 11 %}
+              {% set target_day = now().date() if now().hour < target_hour else (now() + timedelta(days=1)).date() %}
+              
+              {% set ns = namespace(match=none) %}
+              {% for hour in forecast if hour.datetime is defined %}
+                {% set dt = as_datetime(hour.datetime) | as_local %}
+                {% if dt.date() == target_day and dt.hour == target_hour %}
+                  {% set ns.match = hour %}
+                {% endif %}
+              {% endfor %}
+              
+              {% if ns.match is not none %}
+                {% set cond = ns.match.condition | default('clear') %}
+                {% set prob = ns.match.get('precipitation_probability', none) %}
+                {% if cond in ['rainy', 'snowy', 'pouring', 'hail', 'lightning-rainy', 'snowy-rainy'] or (prob is not none and prob | float > 30) %}
+                  {{ cond | replace('-', ' ') | title }}{% if prob is not none %} ({{ prob | round }}%){% endif %}
+                {% else %}
+                  none
+                {% endif %}
+              {% else %}
+                none
+              {% endif %}
+            {% else %}
+              none
+            {% endif %}
+          {% endif %}
+
+        precipitation_home: >
+          {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
+          {% if not is_workday %}
+            none
+          {% else %}
+            {% set forecast_entity = 'weather.om_work' %}
+            {% if hourly_forecast is defined and forecast_entity in hourly_forecast and hourly_forecast[forecast_entity].forecast %}
+              {% set forecast = hourly_forecast[forecast_entity].forecast %}
+              {% set target_hour = 16 %}
+              {% set target_day = now().date() if now().hour < target_hour else (now() + timedelta(days=1)).date() %}
+              
+              {% set ns = namespace(match=none) %}
+              {% for hour in forecast if hour.datetime is defined %}
+                {% set dt = as_datetime(hour.datetime) | as_local %}
+                {% if dt.date() == target_day and dt.hour == target_hour %}
+                  {% set ns.match = hour %}
+                {% endif %}
+              {% endfor %}
+              
+              {% if ns.match is not none %}
+                {% set cond = ns.match.condition | default('clear') %}
+                {% set prob = ns.match.get('precipitation_probability', none) %}
+                {% if cond in ['rainy', 'snowy', 'pouring', 'hail', 'lightning-rainy', 'snowy-rainy'] or (prob is not none and prob | float > 30) %}
+                  {{ cond | replace('-', ' ') | title }}{% if prob is not none %} ({{ prob | round }}%){% endif %}
+                {% else %}
+                  none
+                {% endif %}
+              {% else %}
+                none
+              {% endif %}
+            {% else %}
+              none
+            {% endif %}
           {% endif %}
