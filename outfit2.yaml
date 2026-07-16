@@ -76,6 +76,13 @@
       attributes:
         context: "{{ 'work' if is_state('binary_sensor.workday_sensor', 'on') else 'home' }}"
         
+        # Helper to let the notification know if it's looking at today or tomorrow
+        forecast_day: >
+          {% set current_hour = now().hour %}
+          {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
+          {% set cut_off = 16 if is_workday else 15 %}
+          {{ 'Tomorrow' if current_hour >= cut_off else 'Today' }}
+
         morning_feels_like: >
           {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
           {% if not is_workday and now().hour < 9 %}
@@ -83,7 +90,6 @@
           {% else %}
             {% set forecast_entity = 'weather.om_work' if is_workday else 'weather.om_home' %}
             {% if hourly_forecast is defined and forecast_entity in hourly_forecast and hourly_forecast[forecast_entity].forecast %}
-              {# Grabs the current hour's forecast #}
               {% set forecast = hourly_forecast[forecast_entity].forecast %}
               {% set h = forecast[0] %}
               {% set t = h.temperature | float | default(0) %}
@@ -109,12 +115,14 @@
             {% set forecast_entity = 'weather.om_work' if is_workday else 'weather.om_home' %}
             {% if hourly_forecast is defined and forecast_entity in hourly_forecast and hourly_forecast[forecast_entity].forecast %}
               {% set forecast = hourly_forecast[forecast_entity].forecast %}
-              {# Target: 11:00 AM (Workday) or 12:00 PM (Weekend) #}
               {% set target_hour = 11 if is_workday else 12 %}
-              {# Find the first forecast element matching that hour #}
-              {% set match = forecast | selectattr('datetime', 'defined') | selectattr('datetime', 'search', 'T' ~ '%02d'|format(target_hour) ~ ':00:') | first | default(none) %}
+              
+              {# If the target hour today has already passed, target tomorrow's hour #}
+              {% set target_date = (now() if now().hour < target_hour else now() + timedelta(days=1)).strftime('%Y-%m-%d') %}
+              {% set target_string = target_date ~ 'T' ~ '%02d'|format(target_hour) ~ ':00:' %}
+              
+              {% set match = forecast | selectattr('datetime', 'defined') | selectattr('datetime', 'search', target_string) | first | default(none) %}
               {% if match is none %}
-                {# Fallback to 7/3 hour index if search fails #}
                 {% set match = forecast[[7 if is_workday else 3, forecast|length - 1]|min] %}
               {% endif %}
               {% set t = match.temperature | float | default(0) %}
@@ -140,12 +148,14 @@
             {% set forecast_entity = 'weather.om_work' if is_workday else 'weather.om_home' %}
             {% if hourly_forecast is defined and forecast_entity in hourly_forecast and hourly_forecast[forecast_entity].forecast %}
               {% set forecast = hourly_forecast[forecast_entity].forecast %}
-              {# Target: 4:00 PM (Workday) or 3:00 PM (Weekend) #}
               {% set target_hour = 16 if is_workday else 15 %}
-              {# Find the first forecast element matching that hour #}
-              {% set match = forecast | selectattr('datetime', 'defined') | selectattr('datetime', 'search', 'T' ~ '%02d'|format(target_hour) ~ ':00:') | first | default(none) %}
+              
+              {# If the target hour today has already passed, target tomorrow's hour #}
+              {% set target_date = (now() if now().hour < target_hour else now() + timedelta(days=1)).strftime('%Y-%m-%d') %}
+              {% set target_string = target_date ~ 'T' ~ '%02d'|format(target_hour) ~ ':00:' %}
+              
+              {% set match = forecast | selectattr('datetime', 'defined') | selectattr('datetime', 'search', target_string) | first | default(none) %}
               {% if match is none %}
-                {# Fallback to 12/6 hour index if search fails #}
                 {% set match = forecast[[12 if is_workday else 6, forecast|length - 1]|min] %}
               {% endif %}
               {% set t = match.temperature | float | default(0) %}
