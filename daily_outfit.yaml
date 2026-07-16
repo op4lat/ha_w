@@ -30,21 +30,20 @@
       state: >
         {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
         {% set current_hour = now().hour %}
-        
+
         {# Block early weekend triggers #}
         {% if not is_workday and current_hour < 9 %}
           off
         {% else %}
           {% set forecast_entity = 'weather.om_work' if is_workday else 'weather.om_home' %}
-          
+ 
           {% if hourly_forecast is defined and forecast_entity in hourly_forecast and hourly_forecast[forecast_entity].forecast %}
             {% set forecast = hourly_forecast[forecast_entity].forecast %}
-            {% set check_window = forecast[:14] %}  
             {% set max_fl = namespace(val=-999) %}
             {% set min_fl = namespace(val=999) %}
             
-            {# Loop through the window calculating feels-like inline #}
-            {% for hour in check_window %}
+            {# Loop through the next 14 hours calculating feels-like inline #}
+            {% for hour in forecast[:14] %}
               {% set t = hour.temperature | float | default(0) %}
               {% set h = hour.get('humidity', 50) | float | default(50) %}
               {% set w = hour.get('wind_speed', 0) | float | default(0) %}
@@ -73,10 +72,17 @@
             unavailable
           {% endif %}
         {% endif %}
-        
+
       attributes:
         context: "{{ 'work' if is_state('binary_sensor.workday_sensor', 'on') else 'home' }}"
-        
+
+        # Helper to let the notification know if it's looking at today or tomorrow
+        forecast_day: >
+          {% set current_hour = now().hour %}
+          {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
+          {% set cut_off = 16 if is_workday else 15 %}
+          {{ 'Tomorrow' if current_hour >= cut_off else 'Today' }}
+
         morning_feels_like: >
           {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
           {% if not is_workday and now().hour < 9 %}
@@ -85,13 +91,11 @@
             {% set forecast_entity = 'weather.om_work' if is_workday else 'weather.om_home' %}
             {% if hourly_forecast is defined and forecast_entity in hourly_forecast and hourly_forecast[forecast_entity].forecast %}
               {% set forecast = hourly_forecast[forecast_entity].forecast %}
-              {% set idx = [0, forecast|length - 1]|min %}
-              {% set h = forecast[idx] %}
+              {% set h = forecast[0] %}
               {% set t = h.temperature | float | default(0) %}
               {% set hum = h.get('humidity', 50) | float | default(50) %}
               {% set w = h.get('wind_speed', 0) | float | default(0) %}
               {% set feels = t %}
-              
               {% if t > 80 %}
                 {% set feels = 0.5 * (t + 61.0 + ((t - 68.0) * 1.2) + (hum * 0.094)) %}
               {% elif t < 50 and w > 3 %}
@@ -111,11 +115,27 @@
             {% set forecast_entity = 'weather.om_work' if is_workday else 'weather.om_home' %}
             {% if hourly_forecast is defined and forecast_entity in hourly_forecast and hourly_forecast[forecast_entity].forecast %}
               {% set forecast = hourly_forecast[forecast_entity].forecast %}
-              {% set idx = [7 if is_workday else 3, forecast|length - 1]|min %}
-              {% set h = forecast[idx] %}
-              {% set t = h.temperature | float | default(0) %}
-              {% set hum = h.get('humidity', 50) | float | default(50) %}
-              {% set w = h.get('wind_speed', 0) | float | default(0) %}
+              {% set target_hour = 11 if is_workday else 12 %}
+              
+              {# Determine if we are looking for today or tomorrow #}
+              {% set target_day = now().date() if now().hour < target_hour else (now() + timedelta(days=1)).date() %}
+              
+              {# Robustly find the matching forecast slot #}
+              {% set ns = namespace(match=none) %}
+              {% for hour in forecast if hour.datetime is defined %}
+                {# Convert UTC forecast time to Local Time #}
+                {% set dt = as_datetime(hour.datetime) | as_local %}
+                {% if dt.date() == target_day and dt.hour == target_hour %}
+                  {% set ns.match = hour %}
+                {% endif %}
+              {% endfor %}
+              
+              {# Fallback to standard index if not found #}
+              {% set match = ns.match if ns.match is not none else forecast[[7 if is_workday else 3, forecast|length - 1]|min] %}
+              
+              {% set t = match.temperature | float | default(0) %}
+              {% set hum = match.get('humidity', 50) | float | default(50) %}
+              {% set w = match.get('wind_speed', 0) | float | default(0) %}
               {% set feels = t %}
               {% if t > 80 %}
                 {% set feels = 0.5 * (t + 61.0 + ((t - 68.0) * 1.2) + (hum * 0.094)) %}
@@ -127,7 +147,7 @@
               unknown
             {% endif %}
           {% endif %}
-          
+
         later_feels_like_2: >
           {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
           {% if not is_workday and now().hour < 9 %}
@@ -136,11 +156,27 @@
             {% set forecast_entity = 'weather.om_work' if is_workday else 'weather.om_home' %}
             {% if hourly_forecast is defined and forecast_entity in hourly_forecast and hourly_forecast[forecast_entity].forecast %}
               {% set forecast = hourly_forecast[forecast_entity].forecast %}
-              {% set idx = [12 if is_workday else 6, forecast|length - 1]|min %}
-              {% set h = forecast[idx] %}
-              {% set t = h.temperature | float | default(0) %}
-              {% set hum = h.get('humidity', 50) | float | default(50) %}
-              {% set w = h.get('wind_speed', 0) | float | default(0) %}
+              {% set target_hour = 16 if is_workday else 15 %}
+              
+              {# Determine if we are looking for today or tomorrow #}
+              {% set target_day = now().date() if now().hour < target_hour else (now() + timedelta(days=1)).date() %}
+              
+              {# Robustly find the matching forecast slot #}
+              {% set ns = namespace(match=none) %}
+              {% for hour in forecast if hour.datetime is defined %}
+                {# Convert UTC forecast time to Local Time #}
+                {% set dt = as_datetime(hour.datetime) | as_local %}
+                {% if dt.date() == target_day and dt.hour == target_hour %}
+                  {% set ns.match = hour %}
+                {% endif %}
+              {% endfor %}
+              
+              {# Fallback to standard index if not found #}
+              {% set match = ns.match if ns.match is not none else forecast[[12 if is_workday else 6, forecast|length - 1]|min] %}
+              
+              {% set t = match.temperature | float | default(0) %}
+              {% set hum = match.get('humidity', 50) | float | default(50) %}
+              {% set w = match.get('wind_speed', 0) | float | default(0) %}
               {% set feels = t %}
               {% if t > 80 %}
                 {% set feels = 0.5 * (t + 61.0 + ((t - 68.0) * 1.2) + (hum * 0.094)) %}
@@ -164,7 +200,7 @@
           {% elif state_val == 'heavy_coat' %} 🥶 Extreme Cold
           {% else %} Normal
           {% endif %}
-          
+
         clothing_advice: >
           {% set state_val = states('sensor.daily_outfit') %}
           {% set is_work = is_state('binary_sensor.workday_sensor', 'on') %}
@@ -184,4 +220,74 @@
             {{ 'Heavy coat, hat, gloves.' if is_work else 'Bundle up!' }}
           {% else %}
             Wear regular clothes.
+          {% endif %}
+
+        precipitation_lunch: >
+          {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
+          {% if not is_workday %}
+            none
+          {% else %}
+            {% set forecast_entity = 'weather.om_work' %}
+            {% if hourly_forecast is defined and forecast_entity in hourly_forecast and hourly_forecast[forecast_entity].forecast %}
+              {% set forecast = hourly_forecast[forecast_entity].forecast %}
+              {% set target_hour = 11 %}
+              {% set target_day = now().date() if now().hour < target_hour else (now() + timedelta(days=1)).date() %}
+              
+              {% set ns = namespace(match=none) %}
+              {% for hour in forecast if hour.datetime is defined %}
+                {% set dt = as_datetime(hour.datetime) | as_local %}
+                {% if dt.date() == target_day and dt.hour == target_hour %}
+                  {% set ns.match = hour %}
+                {% endif %}
+              {% endfor %}
+              
+              {% if ns.match is not none %}
+                {% set cond = ns.match.condition | default('clear') %}
+                {% set prob = ns.match.get('precipitation_probability', none) %}
+                {% if cond in ['rainy', 'snowy', 'pouring', 'hail', 'lightning-rainy', 'snowy-rainy'] or (prob is not none and prob | float > 60) %}
+                  {{ cond | replace('-', ' ') | title }}{% if prob is not none %} ({{ prob | round }}%){% endif %}
+                {% else %}
+                  none
+                {% endif %}
+              {% else %}
+                none
+              {% endif %}
+            {% else %}
+              none
+            {% endif %}
+          {% endif %}
+
+        precipitation_home: >
+          {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
+          {% if not is_workday %}
+            none
+          {% else %}
+            {% set forecast_entity = 'weather.om_work' %}
+            {% if hourly_forecast is defined and forecast_entity in hourly_forecast and hourly_forecast[forecast_entity].forecast %}
+              {% set forecast = hourly_forecast[forecast_entity].forecast %}
+              {% set target_hour = 16 %}
+              {% set target_day = now().date() if now().hour < target_hour else (now() + timedelta(days=1)).date() %}
+              
+              {% set ns = namespace(match=none) %}
+              {% for hour in forecast if hour.datetime is defined %}
+                {% set dt = as_datetime(hour.datetime) | as_local %}
+                {% if dt.date() == target_day and dt.hour == target_hour %}
+                  {% set ns.match = hour %}
+                {% endif %}
+              {% endfor %}
+              
+              {% if ns.match is not none %}
+                {% set cond = ns.match.condition | default('clear') %}
+                {% set prob = ns.match.get('precipitation_probability', none) %}
+                {% if cond in ['rainy', 'snowy', 'pouring', 'hail', 'lightning-rainy', 'snowy-rainy'] or (prob is not none and prob | float > 60) %}
+                  {{ cond | replace('-', ' ') | title }}{% if prob is not none %} ({{ prob | round }}%){% endif %}
+                {% else %}
+                  none
+                {% endif %}
+              {% else %}
+                none
+              {% endif %}
+            {% else %}
+              none
+            {% endif %}
           {% endif %}
