@@ -244,7 +244,7 @@
               {% if ns.match is not none %}
                 {% set cond = ns.match.condition | default('clear') %}
                 {% set prob = ns.match.get('precipitation_probability', none) %}
-                {% if cond in ['rainy', 'snowy', 'pouring', 'hail', 'lightning-rainy', 'snowy-rainy'] or (prob is not none and prob | float > 30) %}
+                {% if cond in ['rainy', 'snowy', 'pouring', 'hail', 'lightning-rainy', 'snowy-rainy'] or (prob is not none and prob | float > 60) %}
                   {{ cond | replace('-', ' ') | title }}{% if prob is not none %} ({{ prob | round }}%){% endif %}
                 {% else %}
                   none
@@ -279,7 +279,7 @@
               {% if ns.match is not none %}
                 {% set cond = ns.match.condition | default('clear') %}
                 {% set prob = ns.match.get('precipitation_probability', none) %}
-                {% if cond in ['rainy', 'snowy', 'pouring', 'hail', 'lightning-rainy', 'snowy-rainy'] or (prob is not none and prob | float > 30) %}
+                {% if cond in ['rainy', 'snowy', 'pouring', 'hail', 'lightning-rainy', 'snowy-rainy'] or (prob is not none and prob | float > 60) %}
                   {{ cond | replace('-', ' ') | title }}{% if prob is not none %} ({{ prob | round }}%){% endif %}
                 {% else %}
                   none
