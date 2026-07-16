@@ -36,7 +36,7 @@
           {% endfor %}
           {{ min_temp if min_temp != 999 else 0 }}
         warning_message: >
-          {% set min_temp_raw = state_attr('sensor.freeze_warning_sensor', 'min_temperature') %}
+          {% set min_temp_raw = state_attr('sensor.freeze_warning', 'min_temperature') %}
           {# Check if raw value is None, 'unknown', or 'unavailable' #}
           {% if min_temp_raw is none or min_temp_raw in ['unknown', 'unavailable'] %}
             {% set min_temp = 50.0 %}
