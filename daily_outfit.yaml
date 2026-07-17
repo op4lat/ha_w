@@ -2,7 +2,7 @@
     - trigger: time
       at: "04:20:00"
     - trigger: time
-      at: "09:00:00"
+      at: "07:00:00"
     - trigger: homeassistant
       event: start
     - trigger: state
@@ -32,7 +32,7 @@
         {% set current_hour = now().hour %}
 
         {# Block early weekend triggers #}
-        {% if not is_workday and current_hour < 9 %}
+        {% if not is_workday and current_hour < 7 %}
           off
         {% else %}
           {% set forecast_entity = 'weather.om_work' if is_workday else 'weather.om_home' %}
@@ -85,7 +85,7 @@
 
         morning_feels_like: >
           {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
-          {% if not is_workday and now().hour < 9 %}
+          {% if not is_workday and now().hour < 7 %}
             0
           {% else %}
             {% set forecast_entity = 'weather.om_work' if is_workday else 'weather.om_home' %}
@@ -109,7 +109,7 @@
 
         later_feels_like_1: >
           {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
-          {% if not is_workday and now().hour < 9 %}
+          {% if not is_workday and now().hour < 7 %}
             0
           {% else %}
             {% set forecast_entity = 'weather.om_work' if is_workday else 'weather.om_home' %}
@@ -150,7 +150,7 @@
 
         later_feels_like_2: >
           {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
-          {% if not is_workday and now().hour < 9 %}
+          {% if not is_workday and now().hour < 7 %}
             0
           {% else %}
             {% set forecast_entity = 'weather.om_work' if is_workday else 'weather.om_home' %}
@@ -235,6 +235,7 @@
               
               {% set ns = namespace(match=none) %}
               {% for hour in forecast if hour.datetime is defined %}
+                {# Convert UTC forecast time to Local Time #}
                 {% set dt = as_datetime(hour.datetime) | as_local %}
                 {% if dt.date() == target_day and dt.hour == target_hour %}
                   {% set ns.match = hour %}
@@ -270,6 +271,7 @@
               
               {% set ns = namespace(match=none) %}
               {% for hour in forecast if hour.datetime is defined %}
+                {# Convert UTC forecast time to Local Time #}
                 {% set dt = as_datetime(hour.datetime) | as_local %}
                 {% if dt.date() == target_day and dt.hour == target_hour %}
                   {% set ns.match = hour %}
