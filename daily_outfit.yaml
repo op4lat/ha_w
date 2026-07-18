@@ -1,8 +1,8 @@
 - trigger:
     - trigger: time
-      at: "04:20:00"
+      at: "04:05:00"
     - trigger: time
-      at: "07:00:00"
+      at: "07:01:00"
     - trigger: homeassistant
       event: start
     - trigger: state
