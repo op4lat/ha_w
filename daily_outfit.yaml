@@ -31,46 +31,41 @@
         {% set is_workday = is_state('binary_sensor.workday_sensor', 'on') %}
         {% set current_hour = now().hour %}
 
-        {# Block early weekend triggers #}
-        {% if not is_workday and current_hour < 7 %}
-          off
-        {% else %}
-          {% set forecast_entity = 'weather.om_work' if is_workday else 'weather.om_home' %}
- 
-          {% if hourly_forecast is defined and forecast_entity in hourly_forecast and hourly_forecast[forecast_entity].forecast %}
-            {% set forecast = hourly_forecast[forecast_entity].forecast %}
-            {% set max_fl = namespace(val=-999) %}
-            {% set min_fl = namespace(val=999) %}
+        {% set forecast_entity = 'weather.om_work' if is_workday else 'weather.om_home' %}
+
+        {% if hourly_forecast is defined and forecast_entity in hourly_forecast and hourly_forecast[forecast_entity].forecast %}
+          {% set forecast = hourly_forecast[forecast_entity].forecast %}
+          {% set max_fl = namespace(val=-999) %}
+          {% set min_fl = namespace(val=999) %}
+          
+          {# Loop through the next 14 hours calculating feels-like inline #}
+          {% for hour in forecast[:14] %}
+            {% set t = hour.temperature | float | default(0) %}
+            {% set h = hour.get('humidity', 50) | float | default(50) %}
+            {% set w = hour.get('wind_speed', 0) | float | default(0) %}
+            {% set feels = t %}
             
-            {# Loop through the next 14 hours calculating feels-like inline #}
-            {% for hour in forecast[:14] %}
-              {% set t = hour.temperature | float | default(0) %}
-              {% set h = hour.get('humidity', 50) | float | default(50) %}
-              {% set w = hour.get('wind_speed', 0) | float | default(0) %}
-              {% set feels = t %}
-              
-              {% if t > 80 %}
-                {% set feels = 0.5 * (t + 61.0 + ((t - 68.0) * 1.2) + (h * 0.094)) %}
-              {% elif t < 50 and w > 3 %}
-                {% set feels = 35.74 + (0.6215 * t) - (35.75 * (w ** 0.16)) + (0.4275 * t * (w ** 0.16)) %}
-              {% endif %}
-              
-              {% if feels > max_fl.val %}{% set max_fl.val = feels %}{% endif %}
-              {% if feels < min_fl.val %}{% set min_fl.val = feels %}{% endif %}
-            {% endfor %}
-            
-            {# Threshold checks #}
-            {% if max_fl.val > 100 %} extreme_heat
-            {% elif max_fl.val > 90 %} very_warm
-            {% elif min_fl.val < 10 %} heavy_coat
-            {% elif min_fl.val < 32 %} thick_coat
-            {% elif min_fl.val < 45 %} sweater
-            {% elif min_fl.val < 60 %} light_jacket
-            {% else %} no_jacket
+            {% if t > 80 %}
+              {% set feels = 0.5 * (t + 61.0 + ((t - 68.0) * 1.2) + (h * 0.094)) %}
+            {% elif t < 50 and w > 3 %}
+              {% set feels = 35.74 + (0.6215 * t) - (35.75 * (w ** 0.16)) + (0.4275 * t * (w ** 0.16)) %}
             {% endif %}
-          {% else %}
-            unavailable
+            
+            {% if feels > max_fl.val %}{% set max_fl.val = feels %}{% endif %}
+            {% if feels < min_fl.val %}{% set min_fl.val = feels %}{% endif %}
+          {% endfor %}
+          
+          {# Threshold checks #}
+          {% if max_fl.val > 100 %} extreme_heat
+          {% elif max_fl.val > 90 %} very_warm
+          {% elif min_fl.val < 10 %} heavy_coat
+          {% elif min_fl.val < 32 %} thick_coat
+          {% elif min_fl.val < 45 %} sweater
+          {% elif min_fl.val < 60 %} light_jacket
+          {% else %} no_jacket
           {% endif %}
+        {% else %}
+          unavailable
         {% endif %}
 
       attributes:
