@@ -22,13 +22,18 @@
         {% set next_3 = forecast[:3] %}
         
         {% set precs = next_3 | map(attribute='precipitation') | select('defined') | list %}
+        
+        {# Note: Open-Meteo omits precipitation_probability in this payload. #}
+        {# The probability check below remains as a safe fallback for future API support or alternative providers. #}
         {% set probs = next_3 | map(attribute='precipitation_probability') | select('defined') | list %}
         
-        {{ 'on' if (precs | select('gt', 0.05) | list | length > 0) or (probs | select('gt', 30) | list | length > 0) or is_state(ent, ['rainy', 'pouring']) else 'off' }}
+        {# State is strictly 'on' only if precipitation exceeds 0.05 in/hr or probability exceeds 30% #}
+        {{ 'on' if (precs | select('gt', 0.05) | list | length > 0) or (probs | select('gt', 30) | list | length > 0) else 'off' }}
       attributes:
         location_context: >
           {{ 'Work' if (is_state('binary_sensor.workday_sensor', 'on') and 7 <= now().hour < 17) else 'Home' }}
         max_probability: >
+          {# Placeholder: Binary 0 or 100 since Open-Meteo omits probability percentages #}
           {% set is_work = is_state('binary_sensor.workday_sensor', 'on') and 7 <= now().hour < 17 %}
           {% set ent = 'weather.om_work' if is_work else 'weather.om_home' %}
           {% set forecast = hourly[ent].forecast if hourly is defined and ent in hourly else [] %}
@@ -36,6 +41,7 @@
           {% if probs | length > 0 %}
             {{ probs | max }}
           {% else %}
+            {# Fallback calculation based on 0.05 in/hr threshold #}
             {% set precs = forecast[:3] | map(attribute='precipitation') | select('defined') | list %}
             {{ 100 if (precs | select('gt', 0.05) | list | length > 0) else 0 }}
           {% endif %}
@@ -45,6 +51,11 @@
           {% set ent = 'weather.om_work' if is_work else 'weather.om_home' %}
           {% set forecast = hourly[ent].forecast if hourly is defined and ent in hourly else [] %}
           {{ forecast[:3] | map(attribute='condition') | list }}
+        raw_precipitations: >
+          {% set is_work = is_state('binary_sensor.workday_sensor', 'on') and 7 <= now().hour < 17 %}
+          {% set ent = 'weather.om_work' if is_work else 'weather.om_home' %}
+          {% set forecast = hourly[ent].forecast if hourly is defined and ent in hourly else [] %}
+          {{ forecast[:3] | map(attribute='precipitation') | list }}
         start_time: >
           {% set is_work = is_state('binary_sensor.workday_sensor', 'on') and 7 <= now().hour < 17 %}
           {% set ent = 'weather.om_work' if is_work else 'weather.om_home' %}
